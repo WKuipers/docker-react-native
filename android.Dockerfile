@@ -1,11 +1,11 @@
 FROM library/ubuntu:16.04
 
-# https://github.com/facebook/react-native/blob/8c7b32d5f1da34613628b4b8e0474bc1e185a618/ContainerShip/Dockerfile.android-base
-
 # set default build arguments
 ARG ANDROID_VERSION=25.2.3
-ENV NPM_CONFIG_LOGLEVEL info
-ENV NODE_VERSION 6.2.0
+ARG BUCK_VERSION=f3452a6a7ab15a60e94c962e686293acbe677473
+ARG NDK_VERSION=10e
+ARG NODE_VERSION=6.2.0
+ARG WATCHMAN_VERSION=4.7.0
 
 # set default environment variables
 ENV ADB_INSTALL_TIMEOUT=10
@@ -13,69 +13,60 @@ ENV PATH=${PATH}:/opt/buck/bin/
 ENV ANDROID_HOME=/opt/android
 ENV ANDROID_SDK_HOME=${ANDROID_HOME}
 ENV PATH=${PATH}:${ANDROID_HOME}/tools:${ANDROID_HOME}/platform-tools
+ENV ANDROID_NDK=/opt/ndk/android-ndk-r$NDK_VERSION
+ENV PATH=${PATH}:${ANDROID_NDK}
 
 # install system dependencies
 RUN apt-get update && apt-get install ant autoconf automake curl g++ gcc git libqt5widgets5 lib32z1 lib32stdc++6 make maven npm openjdk-8* python-dev python3-dev qml-module-qtquick-controls qtdeclarative5-dev unzip -y
 
-# install nodejs
-RUN groupadd --gid 1000 node \
-  && useradd --uid 1000 --gid node --shell /bin/bash --create-home node
+# configure npm
+RUN npm config set spin=false
+RUN npm config set progress=false
 
-# gpg keys listed at https://github.com/nodejs/node#release-team
-RUN set -ex \
-  && for key in \
-    9554F04D7259F04124DE6B476D5A82AC7E37093B \
-    94AE36675C464D64BAFA68DD7434390BDBE9B9C5 \
-    FD3A5288F042B6850C66B31F09FE44734EB7990E \
-    71DCFD284A79C3B38668286BC97EC7A07EDE3FC1 \
-    DD8F2338BAE7501E3DD5AC78C273792F7D83545D \
-    B9AE9905FFD7803F25714661B63B535A4C206CA9 \
-    C4F0DFFF4E8C1A8236409D08E73BC641CC11F4C8 \
-    56730D5401028683275BD23C23EFEFE93C4CFFFE \
-  ; do \
-    gpg --keyserver ha.pool.sks-keyservers.net --recv-keys "$key" || \
-    gpg --keyserver pgp.mit.edu --recv-keys "$key" || \
-    gpg --keyserver keyserver.pgp.com --recv-keys "$key" ; \
-  done
+# install node
+RUN npm install n -g
+RUN n $NODE_VERSION
 
-ENV NPM_CONFIG_LOGLEVEL info
-ENV NODE_VERSION 6.10.3
+# download buck
+RUN git clone https://github.com/facebook/buck.git /opt/buck
+WORKDIR /opt/buck
+RUN git checkout $BUCK_VERSION
 
-RUN curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-x64.tar.xz" \
-  && curl -SLO "https://nodejs.org/dist/v$NODE_VERSION/SHASUMS256.txt.asc" \
-  && gpg --batch --decrypt --output SHASUMS256.txt SHASUMS256.txt.asc \
-  && grep " node-v$NODE_VERSION-linux-x64.tar.xz\$" SHASUMS256.txt | sha256sum -c - \
-  && tar -xJf "node-v$NODE_VERSION-linux-x64.tar.xz" -C /usr/local --strip-components=1 \
-  && rm "node-v$NODE_VERSION-linux-x64.tar.xz" SHASUMS256.txt.asc SHASUMS256.txt \
-  && ln -s /usr/local/bin/node /usr/local/bin/nodejs
+# build buck
+RUN ant
 
-ENV YARN_VERSION 0.23.4
+# download watchman
+RUN git clone https://github.com/facebook/watchman.git /opt/watchman
+WORKDIR /opt/watchman
+RUN git checkout v$WATCHMAN_VERSION
 
-RUN set -ex \
-  && for key in \
-    6A010C5166006599AA17F08146C2130DFD2497F5 \
-  ; do \
-    gpg --keyserver ha.pool.sks-keyservers.net --recv-keys "$key" || \
-    gpg --keyserver pgp.mit.edu --recv-keys "$key" || \
-    gpg --keyserver keyserver.pgp.com --recv-keys "$key" ; \
-  done \
-  && curl -fSL -o yarn.js "https://yarnpkg.com/downloads/$YARN_VERSION/yarn-legacy-$YARN_VERSION.js" \
-  && curl -fSL -o yarn.js.asc "https://yarnpkg.com/downloads/$YARN_VERSION/yarn-legacy-$YARN_VERSION.js.asc" \
-  && gpg --batch --verify yarn.js.asc yarn.js \
-  && rm yarn.js.asc \
-  && mv yarn.js /usr/local/bin/yarn \
-  && chmod +x /usr/local/bin/yarn
+# build watchman
+RUN ./autogen.sh
+RUN ./configure
+RUN make
+RUN make install
 
-# Download and install Android
+# download and unpack android
 RUN mkdir /opt/android
 WORKDIR /opt/android
 RUN curl --silent https://dl.google.com/android/repository/tools_r$ANDROID_VERSION-linux.zip > android.zip
 RUN unzip android.zip
 RUN rm android.zip
 
-RUN echo $(android list sdk -a | grep "Android SDK Platform-tools, revision 25.0.4" | awk '{ print $1 }' | sed 's/.$//')
+# download and unpack NDK
+RUN mkdir /opt/ndk
+WORKDIR /opt/ndk
+RUN curl --silent https://dl.google.com/android/repository/android-ndk-r$NDK_VERSION-linux-x86_64.zip > ndk.zip
+RUN unzip ndk.zip
+
+# cleanup NDK
+RUN rm ndk.zip
+
+# Add android SDK tools
+
 # Android SDK Platform-tools, revision 25.0.4
 RUN echo "y" | android update sdk -u -a -t $(android list sdk -a | grep "Android SDK Platform-tools, revision 25.0.4" | awk '{ print $1 }' | sed 's/.$//')
+
 # Android SDK Build-tools, revision 23.0.1
 RUN echo "y" | android update sdk -u -a -t $(android list sdk -a | grep "Android SDK Build-tools, revision 23.0.1" | awk '{ print $1 }' | sed 's/.$//')
 
@@ -100,8 +91,11 @@ RUN echo "y" | android update sdk -u -a -t $(android list sdk -a | grep "Android
 # Link adb executable
 RUN ln -s /opt/android/platform-tools/adb /usr/bin/adb
 
+# Install google-chrome
+RUN curl -fsSL https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
+     && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
+     && apt-get update \
+     && apt-get install -y google-chrome-stable
+
 # clean up unnecessary directories
 RUN rm -rf /opt/android/system-images/android-19/default/x86
-
-VOLUME [ "/app" ]
-WORKDIR [ "/app" ]
