@@ -84,12 +84,6 @@ RUN echo "y" | android update sdk -u -a -t $(android list sdk -a | grep "SDK Pla
 # SDK Platform Android 4.4.2, API 19, revision 4
 RUN echo "y" | android update sdk -u -a -t $(android list sdk -a | grep "SDK Platform Android 4.4.2, API 19, revision 4" | awk '{ print $1 }' | sed 's/.$//')
 
-# ARM EABI v7a System Image, Android API 19, revision 5
-RUN echo "y" | android update sdk -u -a -t $(android list sdk -a | grep "ARM EABI v7a System Image, Android API 19, revision 5" | awk '{ print $1 }' | sed 's/.$//')
-
-# Intel x86 Atom System Image, Android API 19, revision 5
-RUN echo "y" | android update sdk -u -a -t $(android list sdk -a | grep "Intel x86 Atom System Image, Android API 19, revision 5" | awk '{ print $1 }' | sed 's/.$//')
-
 # Google APIs, Android API 23, revision 1
 RUN echo "y" | android update sdk -u -a -t $(android list sdk -a | grep "Google APIs, Android API 23, revision 1" | awk '{ print $1 }' | sed 's/.$//')
 
