@@ -73,9 +73,8 @@ RUN curl --silent https://dl.google.com/android/repository/tools_r$ANDROID_VERSI
 RUN unzip android.zip
 RUN rm android.zip
 
-RUN echo $(android list sdk -a | grep "Android SDK Platform-tools, revision 25.0.4" | awk '{ print $1 }' | sed 's/.$//')
 # Android SDK Platform-tools, revision 25.0.4
-RUN echo "y" | android update sdk -u -a -t $(android list sdk -a | grep "Android SDK Platform-tools, revision 25.0.4" | awk '{ print $1 }' | sed 's/.$//')
+RUN echo "y" | android update sdk -u -a -t $(android list sdk -a | grep "Android SDK Platform-tools, revision 25.0.5" | awk '{ print $1 }' | sed 's/.$//')
 # Android SDK Build-tools, revision 23.0.1
 RUN echo "y" | android update sdk -u -a -t $(android list sdk -a | grep "Android SDK Build-tools, revision 23.0.1" | awk '{ print $1 }' | sed 's/.$//')
 
