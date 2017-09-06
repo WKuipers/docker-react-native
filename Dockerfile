@@ -73,22 +73,11 @@ RUN curl --silent https://dl.google.com/android/repository/tools_r$ANDROID_VERSI
 RUN unzip android.zip
 RUN rm android.zip
 
-# Android SDK Platform-tools, revision 25.0.4
-RUN echo "y" | android update sdk -u -a -t $(android list sdk -a | grep "Android SDK Platform-tools, revision 25.0.5" | awk '{ print $1 }' | sed 's/.$//')
-# Android SDK Build-tools, revision 23.0.1
-RUN echo "y" | android update sdk -u -a -t $(android list sdk -a | grep "Android SDK Build-tools, revision 23.0.1" | awk '{ print $1 }' | sed 's/.$//')
-
-# SDK Platform Android 6.0, API 23, revision 3
-RUN echo "y" | android update sdk -u -a -t $(android list sdk -a | grep "SDK Platform Android 6.0, API 23" | awk '{ print $1 }' | sed 's/.$//')
-
-# SDK Platform Android 4.4.2, API 19, revision 4
-RUN echo "y" | android update sdk -u -a -t $(android list sdk -a | grep "SDK Platform Android 4.4.2, API 19, revision 4" | awk '{ print $1 }' | sed 's/.$//')
-
-# Google APIs, Android API 23, revision 1
-RUN echo "y" | android update sdk -u -a -t $(android list sdk -a | grep "Google APIs, Android API 23, revision 1" | awk '{ print $1 }' | sed 's/.$//')
-
-# Android Support Repository, revision 45
-RUN echo "y" | android update sdk -u -a -t $(android list sdk -a | grep "Android Support Repository" | awk '{ print $1 }' | sed 's/.$//')
+RUN echo "y" | android update sdk -u -t build-tools-26.0.1
+RUN echo "y" | android update sdk -u -t build-tools-23.0.1
+RUN echo "y" | android update sdk -u -t android-23
+RUN echo "y" | android update sdk -u -t android-26
+RUN echo "y" | android update sdk -u -t platform-tools
 
 # Link adb executable
 RUN ln -s /opt/android/platform-tools/adb /usr/bin/adb
